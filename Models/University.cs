@@ -1,11 +1,18 @@
-﻿namespace API.Models
+﻿using System.ComponentModel.DataAnnotations.Schema;
+
+namespace API.Models
 {
-    public class University
+    [Table("tb_m_universities")]
+    public class University : BaseEntity
     {
-        public Guid Guid { get; set; }
+
+        [Column("code", TypeName = "nvarchar(50)")]
         public string Code { get; set; }
-        public string name { get; set; }
-        public DateTime CreatedDate { get; set; }
-        public DateTime ModifiedDate { get; set; }
+
+        [Column("name", TypeName = "nvarchar(100)")]
+        public string Name { get; set; }
+
+        // Cardinality
+        public ICollection<Education> Educations { get; set; }
     }
 }

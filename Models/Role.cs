@@ -8,6 +8,6 @@ namespace API.Models
 
         [Column("name", TypeName = "nvarchar(50)")]
         public string Name { get; set; }
-        public ICollection<AccountRole> AccountRoles { get; set; }
+        public ICollection<AccountRole>? AccountRoles { get; set; }
     }
 }

@@ -1,5 +1,12 @@
 ﻿using API.Contracts;
 using API.Models;
+using API.Repositories;
+using API.Utility;
+using API.ViewModels.Accounts;
+using API.ViewModels.Educations;
+using API.ViewModels.Employees;
+using API.ViewModels.Login;
+using API.ViewModels.Universities;
 using Microsoft.AspNetCore.Mvc;
 
 namespace API.Controllers
@@ -9,9 +16,113 @@ namespace API.Controllers
     public class AccountController : ControllerBase
     {
         private readonly IAccountRepository _accountRepository;
-        public AccountController(IAccountRepository accountRepository)
+        private readonly IMapper<Account, AccountVM> _accountMapper;
+        private readonly IEmployeeRepository _employeeRepository;
+
+        public AccountController(IAccountRepository accountRepository, IMapper<Account, AccountVM> accountMapper, IEmployeeRepository employeeRepository)
         {
             _accountRepository = accountRepository;
+            _accountMapper = accountMapper;
+            _employeeRepository = employeeRepository;
+        }
+
+        [HttpPost("Register")]
+        public IActionResult Register(RegisterVM registerVM)
+        {
+            var result = _accountRepository.Register(registerVM);
+
+            switch (result)
+            {
+                case 0:
+                    return BadRequest("Registration Failed");
+                case 1:
+                    return BadRequest("Email Already Exists");
+                case 2:
+                    return BadRequest("Phone Number Already Exists");
+                case 3:
+                    return Ok("Registration Success");
+            }
+
+            return Ok();
+        }
+
+        [HttpPost("Login")]
+        public IActionResult Login(LoginVM loginVM)
+        {
+            var account = _accountRepository.Login(loginVM);
+
+            if (account == null)
+            {
+                return NotFound("Account Not FOund!");
+            }
+
+            if (account.Password != loginVM.Password)
+            {
+                return BadRequest("Password Is Invalid!");
+            }
+
+            return Ok();
+        }
+
+        [HttpPost("ChangePassword")]
+        public IActionResult ChangePassword(ChangePasswordVM changePasswordVM)
+        {
+            // Cek apakah email dan OTP valid
+            var account = _employeeRepository.FindGuidByEmail(changePasswordVM.Email);
+            var changePass = _accountRepository.ChangePasswordAccount(account, changePasswordVM);
+            switch (changePass)
+            {
+                case 0:
+                    return BadRequest("");
+                case 1:
+                    return Ok("Password has been changed successfully");
+                case 2:
+                    return BadRequest("Invalid OTP");
+                case 3:
+                    return BadRequest("OTP has already been used");
+                case 4:
+                    return BadRequest("OTP expired");
+                case 5:
+                    return BadRequest("Wrong Password No Same");
+                default:
+                    return BadRequest();
+            }
+            return null;
+
+        }
+
+        [HttpPost("ForgotPassword" + "{email}")]
+        public IActionResult UpdateResetPass(String email)
+        {
+
+            var getGuid = _employeeRepository.FindGuidByEmail(email);
+            if (getGuid == null)
+            {
+                return NotFound("Akun tidak ditemukan");
+            }
+
+            var isUpdated = _accountRepository.UpdateOTP(getGuid);
+
+            switch (isUpdated)
+            {
+                case 0:
+                    return BadRequest();
+                default:
+                    var hasil = new AccountResetPasswordVM
+                    {
+                        Email = email,
+                        OTP = isUpdated
+                    };
+
+                    MailService mailService = new MailService();
+                    mailService.WithSubject("Kode OTP")
+                               .WithBody("OTP anda adalah: " + isUpdated.ToString() + ".\n" +
+                                         "Mohon kode OTP anda tidak diberikan kepada pihak lain" + ".\n" + "Terima kasih.")
+                               .WithEmail(email)
+                               .Send();
+
+                    return Ok(hasil);
+            }
         }
 
         [HttpGet]
@@ -23,7 +134,9 @@ namespace API.Controllers
                 return NotFound();
             }
 
-            return Ok(accounts);
+            var data = accounts.Select(_accountMapper.Map).ToList();
+
+            return Ok(data);
         }
 
         [HttpGet("{guid}")]
@@ -35,13 +148,17 @@ namespace API.Controllers
                 return NotFound();
             }
 
+            var data = _accountMapper.Map(account);
+
             return Ok(account);
         }
 
         [HttpPost]
-        public IActionResult Create(Account account)
+        public IActionResult Create(AccountVM accountVM)
         {
-            var result = _accountRepository.Create(account);
+            var accountConverted = _accountMapper.Map(accountVM);
+
+            var result = _accountRepository.Create(accountConverted);
             if (result is null)
             {
                 return BadRequest();
@@ -50,10 +167,13 @@ namespace API.Controllers
             return Ok(result);
         }
 
+
         [HttpPut]
-        public IActionResult Update(Account account)
+        public IActionResult Update(AccountVM accountVM)
         {
-            var isUpdated = _accountRepository.Update(account);
+            var accountConverted = _accountMapper.Map(accountVM);
+
+            var isUpdated = _accountRepository.Update(accountConverted);
             if (!isUpdated)
             {
                 return BadRequest();

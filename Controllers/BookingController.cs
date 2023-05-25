@@ -1,6 +1,6 @@
 ﻿using API.Contracts;
 using API.Models;
-using API.Repositories;
+using API.ViewModels.Bookings;
 using Microsoft.AspNetCore.Mvc;
 
 namespace API.Controllers
@@ -10,9 +10,51 @@ namespace API.Controllers
     public class BookingController : ControllerBase
     {
         private readonly IBookingRepository _bookingRepository;
-        public BookingController(IBookingRepository bookingRepository)
+        private readonly IMapper<Booking, BookingVM> _bookingMapper;
+        private readonly IEmployeeRepository _employeeRepository;
+        private readonly IRoomRepository _roomRepository;
+        public BookingController(IBookingRepository bookingRepository, IMapper<Booking, BookingVM> bookingMapper, IEmployeeRepository employeeRepository, IRoomRepository roomRepository)
         {
             _bookingRepository = bookingRepository;
+            _bookingMapper = bookingMapper;
+            _employeeRepository = employeeRepository;
+            _roomRepository = roomRepository;
+        }
+
+        [HttpGet("BookingDetail")]
+        public IActionResult GetAllBookingDetail()
+        {
+            try
+            {
+                var bookingDetails = _bookingRepository.GetAllBookingDetail();
+
+                return Ok(bookingDetails);
+
+            }
+            catch
+            {
+                return Ok("error");
+            }
+        }
+
+        [HttpGet("BookingDetailByGuid")]
+        public IActionResult GetDetailByGuid(Guid guid)
+        {
+            try
+            {
+                var booking = _bookingRepository.GetBookingDetailByGuid(guid);
+                if (booking is null)
+                {
+
+                    return NotFound();
+                }
+
+                return Ok(booking);
+            }
+            catch
+            {
+                return Ok("error");
+            }
         }
 
         [HttpGet]
@@ -24,7 +66,9 @@ namespace API.Controllers
                 return NotFound();
             }
 
-            return Ok(bookings);
+            var data = bookings.Select(_bookingMapper.Map).ToList();
+
+            return Ok(data);
         }
 
         [HttpGet("{guid}")]
@@ -36,13 +80,17 @@ namespace API.Controllers
                 return NotFound();
             }
 
-            return Ok(booking);
+            var data = _bookingMapper.Map(booking);
+
+            return Ok(data);
         }
 
         [HttpPost]
-        public IActionResult Create(Booking booking)
+        public IActionResult Create(BookingVM bookingVM)
         {
-            var result = _bookingRepository.Create(booking);
+            var bookingConverted = _bookingMapper.Map(bookingVM);
+
+            var result = _bookingRepository.Create(bookingConverted);
             if (result is null)
             {
                 return BadRequest();
@@ -52,9 +100,11 @@ namespace API.Controllers
         }
 
         [HttpPut]
-        public IActionResult Update(Booking booking)
+        public IActionResult Update(BookingVM bookingVM)
         {
-            var isUpdated = _bookingRepository.Update(booking);
+            var bookingConverted = _bookingMapper.Map(bookingVM);
+
+            var isUpdated = _bookingRepository.Update(bookingConverted);
             if (!isUpdated)
             {
                 return BadRequest();
@@ -72,5 +122,29 @@ namespace API.Controllers
             }
             return Ok();
         }
+
+        [HttpGet("bookingduration")]
+        public IActionResult GetDuration()
+        {
+            var bookingLengths = _bookingRepository.GetBookingDuration();
+            if (!bookingLengths.Any())
+            {
+                return NotFound();
+            }
+
+            return Ok(bookingLengths);
+        }
+
+        /*[HttpGet("bookinglength")]
+        public IActionResult GetDuration()
+        {
+            var bookingLengths = _bookingRepository.GetBookingDuration();
+            if (!bookingLengths.Any())
+            {
+                return NotFound();
+            }
+
+            return Ok(bookingLengths);
+        }*/
     }
 }

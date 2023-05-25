@@ -1,6 +1,7 @@
 ﻿using API.Contracts;
 using API.Models;
 using API.Repositories;
+using API.ViewModels.Roles;
 using Microsoft.AspNetCore.Mvc;
 
 namespace API.Controllers
@@ -10,9 +11,11 @@ namespace API.Controllers
     public class RoleController : ControllerBase
     {
         private readonly IRoleRepository _roleRepository;
-        public RoleController(IRoleRepository roleRepository)
+        private readonly IMapper<Role, RoleVM> _roleMapper;
+        public RoleController(IRoleRepository roleRepository, IMapper<Role, RoleVM> roleMapper)
         {
             _roleRepository = roleRepository;
+            _roleMapper = roleMapper;
         }
 
         [HttpGet]
@@ -24,7 +27,9 @@ namespace API.Controllers
                 return NotFound();
             }
 
-            return Ok(roles);
+            var data = roles.Select(_roleMapper.Map).ToList();
+
+            return Ok(data);
         }
 
         [HttpGet("{guid}")]
@@ -36,13 +41,17 @@ namespace API.Controllers
                 return NotFound();
             }
 
-            return Ok(role);
+            var data = _roleMapper.Map(role);
+
+            return Ok(data);
         }
 
         [HttpPost]
-        public IActionResult Create(Role role)
+        public IActionResult Create(RoleVM roleVM)
         {
-            var result = _roleRepository.Create(role);
+            var roleConverted = _roleMapper.Map(roleVM);
+
+            var result = _roleRepository.Create(roleConverted);
             if (result is null)
             {
                 return BadRequest();
@@ -52,9 +61,11 @@ namespace API.Controllers
         }
 
         [HttpPut]
-        public IActionResult Update(Role role)
+        public IActionResult Update(RoleVM roleVM)
         {
-            var isUpdated = _roleRepository.Update(role);
+            var roleConverted = _roleMapper.Map(roleVM);
+
+            var isUpdated = _roleRepository.Update(roleConverted);
             if (!isUpdated)
             {
                 return BadRequest();

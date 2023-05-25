@@ -1,73 +1,125 @@
 ﻿using API.Contexts;
 using API.Contracts;
 using API.Models;
+using API.ViewModels.Employees;
 
 namespace API.Repositories
 {
-    public class EmployeeRepository : IEmployeeRepository
+    public class EmployeeRepository : GeneralRepository<Employee>, IEmployeeRepository
     {
-        private readonly BookingManagementDbContext _context;
-        public EmployeeRepository(BookingManagementDbContext context)
+        public EmployeeRepository(BookingManagementDbContext context) : base(context) {}
+
+        public IEnumerable<Employee> GetByEmail(string email)
         {
-            _context = context;
+            return _context.Set<Employee>().Where(e => e.Email == email);
         }
 
-        public Employee Create(Employee employee)
+        public IEnumerable<MasterEmployeeVM> GetAllMasterEmployee()
         {
-            try
-            {
-                _context.Set<Employee>().Add(employee);
-                _context.SaveChanges();
-                return employee;
-            }
-            catch
-            {
-                return new Employee();
-            }
-        }
+            var employees = GetAll();
+            var educations = _context.Educations.ToList();
+            var universities = _context.Universities.ToList();
 
-        public bool Update(Employee employee)
-        {
-            try
-            {
-                _context.Set<Employee>().Update(employee);
-                _context.SaveChanges();
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
+            var employeeEducations = new List<MasterEmployeeVM>();
 
-        public bool Delete(Guid guid)
-        {
-            try
+            foreach (var employee in employees)
             {
-                var employee = GetByGuid(guid);
-                if (employee == null)
+                var education = educations.FirstOrDefault(e => e.Guid == employee?.Guid);
+                var university = universities.FirstOrDefault(u => u.Guid == education?.UniversityGuid);
+
+                if (education != null && university != null)
                 {
-                    return false;
+                    var employeeEducation = new MasterEmployeeVM
+                    {
+                        Guid = employee.Guid,
+                        NIK = employee.Nik,
+                        FullName = employee.FirstName + " " + employee.LastName,
+                        BirthDate = employee.BirthDate,
+                        Gender = employee.Gender,
+                        HiringDate = employee.HiringDate,
+                        Email = employee.Email,
+                        PhoneNumber = employee.PhoneNumber,
+                        Major = education.Major,
+                        Degree = education.Degree,
+                        GPA = education.Gpa,
+                        UniversityName = university.Name
+                    };
+
+                    employeeEducations.Add(employeeEducation);
+                }
+            }
+
+            return employeeEducations;
+        }
+
+        MasterEmployeeVM? IEmployeeRepository.GetMasterEmployeeByGuid(Guid guid)
+        {
+            var employee = GetByGuid(guid);
+            var educations = _context.Educations.Find(guid);
+            var universities = _context.Universities.Find(educations.UniversityGuid);
+
+            var data = new MasterEmployeeVM
+            {
+                Guid = employee.Guid,
+                NIK = employee.Nik,
+                FullName = employee.FirstName + " " + employee.LastName,
+                BirthDate = employee.BirthDate,
+                Gender = employee.Gender,
+                HiringDate = employee.HiringDate,
+                Email = employee.Email,
+                PhoneNumber = employee.PhoneNumber,
+                Major = educations.Major,
+                Degree = educations.Degree,
+                GPA = educations.Gpa,
+                UniversityName = universities.Name
+            };
+
+            return data;
+        }
+
+        public int CreateWithValidate(Employee employee)
+        {
+            try
+            {
+                bool ExistsByEmail = _context.Employees.Any(e => e.Email == employee.Email);
+
+                if(ExistsByEmail)
+                {
+                    return 1;
                 }
 
-                _context.Set<Employee>().Remove(employee);
-                _context.SaveChanges();
-                return true;
+                bool ExistsByPhoneNumber = _context.Employees.Any(e => e.PhoneNumber == employee.PhoneNumber);
+
+                if(ExistsByPhoneNumber)
+                {
+                    return 2;
+                }
+
+                Create(employee);
+                return 3;
+
+            } catch
+            {
+                return 0;
+            }
+        }
+
+        public Guid? FindGuidByEmail(string email)
+        {
+            try
+            {
+                var employee = _context.Employees.FirstOrDefault(e => e.Email == email);
+                if (employee == null)
+                {
+                    return null;
+                }
+                return employee.Guid;
             }
             catch
             {
-                return false;
+                return null;
             }
-        }
 
-        public IEnumerable<Employee> GetAll()
-        {
-            return _context.Set<Employee>().ToList();
-        }
-
-        public Employee? GetByGuid(Guid guid)
-        {
-            return _context.Set<Employee>().Find(guid);
         }
     }
 }

@@ -1,6 +1,7 @@
 using API.Contexts;
 using API.Contracts;
 using API.Repositories;
+using API.Utility;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,6 +13,8 @@ builder.Services.AddControllers();
 // Add DbContext to Sql Server
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<BookingManagementDbContext>(options => options.UseSqlServer(connectionString));
+
+builder.Services.AddSingleton(typeof(IMapper<,>), typeof(Mapper<,>));
 
 // Add Repository to the container
 builder.Services.AddScoped<IUniversityRepository, UniversityRepository>();

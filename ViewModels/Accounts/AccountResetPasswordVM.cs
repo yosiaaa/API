@@ -1,4 +1,7 @@
-﻿namespace API.ViewModels.Accounts
+﻿using API.Models;
+using API.ViewModels.Accounts;
+
+namespace API.ViewModels.Accounts
 {
     public class AccountResetPasswordVM
     {

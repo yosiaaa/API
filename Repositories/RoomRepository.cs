@@ -99,7 +99,6 @@ namespace API.Repositories
 
                 var roomUseTodays = new List<RoomBookedTodayVM>();
 
-
                 foreach (var room in roomUse)
                 {
                     if ((room.StartDate < startToday && room.EndDate < startToday) || (room.StartDate > startToday && room.EndDate > endToday))

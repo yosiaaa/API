@@ -1,9 +1,10 @@
 ﻿using API.Contexts;
 using API.Contracts;
 using API.Models;
+using API.Utility;
 using API.ViewModels.Accounts;
 using API.ViewModels.Login;
-using Microsoft.EntityFrameworkCore;
+using API.ViewModels.Others;
 
 namespace API.Repositories
 {
@@ -12,11 +13,11 @@ namespace API.Repositories
         private readonly IUniversityRepository _universityRepository;
         private readonly IEmployeeRepository _employeeRepository;
         private readonly IEducationRepository _educationRepository;
-        public AccountRepository(
-            BookingManagementDbContext context,
+        public AccountRepository(BookingManagementDbContext context, 
             IUniversityRepository universityRepository,
             IEmployeeRepository employeeRepository,
             IEducationRepository educationRepository
+
         ) : base(context)
         {
             _universityRepository = universityRepository;
@@ -24,30 +25,33 @@ namespace API.Repositories
             _educationRepository = educationRepository;
         }
 
+        //kel 2
         public int Register(RegisterVM registerVM)
         {
             try
             {
                 var university = new University
                 {
-                    Code = registerVM.Code,
-                    Name = registerVM.Name
+                    Code = registerVM.UniversityCode,
+                    Name = registerVM.UniversityName
+
                 };
                 _universityRepository.CreateWithValidate(university);
 
                 var employee = new Employee
                 {
-                    Nik = GenerateNik(),
+                    Nik = GenerateNIK(),
                     FirstName = registerVM.FirstName,
                     LastName = registerVM.LastName,
                     BirthDate = registerVM.BirthDate,
                     Gender = registerVM.Gender,
                     HiringDate = registerVM.HiringDate,
                     Email = registerVM.Email,
-                    PhoneNumber = registerVM.PhoneNumber
+                    PhoneNumber = registerVM.PhoneNumber,
                 };
                 var result = _employeeRepository.CreateWithValidate(employee);
-                if(result != 3)
+
+                if (result != 3)
                 {
                     return result;
                 }
@@ -65,23 +69,34 @@ namespace API.Repositories
                 var account = new Account
                 {
                     Guid = employee.Guid,
-                    Password = registerVM.Password,
+                    Password = Hashing.HashPassword(registerVM.Password),
                     IsDeleted = false,
                     IsUsed = true,
                     Otp = 0
                 };
 
                 Create(account);
+
+                var accountRole = new AccountRole
+                {
+                    RoleGuid = Guid.Parse("a17b8d17-a85e-42c7-9479-08db5ac29b35"),
+                    AccountGuid = employee.Guid
+                };
+                _context.AccountRoles.Add(accountRole);
+                _context.SaveChanges();
+
                 return 3;
 
-            } 
-            catch {
+            }
+            catch
+            {
                 return 0;
             }
 
         }
 
-        private string GenerateNik()
+        //kel 2
+        private string GenerateNIK()
         {
             var lastNik = _employeeRepository.GetAll().OrderByDescending(e => int.Parse(e.Nik)).FirstOrDefault();
 
@@ -97,7 +112,8 @@ namespace API.Repositories
             return "100000";
         }
 
-        public LoginVM Login(LoginVM loginVM)
+        //kel 3
+        public AccountEmpVM Login(LoginVM loginVM)
         {
             var account = GetAll();
             var employee = _employeeRepository.GetAll();
@@ -105,15 +121,44 @@ namespace API.Repositories
                         join acc in account
                         on emp.Guid equals acc.Guid
                         where emp.Email == loginVM.Email
-                        select new LoginVM
+                        select new AccountEmpVM
                         {
                             Email = emp.Email,
                             Password = acc.Password
 
                         };
-            return query.FirstOrDefault();
+
+            var accountEmp = query.FirstOrDefault();
+
+            if (accountEmp != null && Hashing.ValidatePassword(loginVM.Password, accountEmp.Password))
+            {
+                // Password is valid
+                return accountEmp;
+            }
+            else
+            {
+                // Password is invalid or account doesn't exist
+                return null;
+            }
         }
 
+        public IEnumerable<string> GetRoles(Guid Guid)
+        {
+            var getAccount = GetByGuid(Guid);
+            if (getAccount == null) return Enumerable.Empty<string>();
+            var getAccountRoles = from accountRoles in _context.AccountRoles
+                              join roles in _context.Roles on accountRoles.RoleGuid equals roles.Guid
+                              where accountRoles.AccountGuid == Guid
+                              select roles.Name;
+
+            return getAccountRoles.ToList();
+        }
+
+        public Employee GetByEmail(string email)
+        {
+            return _context.Set<Employee>().FirstOrDefault(e => e.Email == email);
+        }
+        
         public int UpdateOTP(Guid? employeeId)
         {
             var account = new Account();
@@ -130,7 +175,6 @@ namespace API.Repositories
             {
                 var check = Update(account);
 
-
                 if (!check)
                 {
                     return 0;
@@ -143,6 +187,7 @@ namespace API.Repositories
             }
         }
 
+        //kel 6
         public int ChangePasswordAccount(Guid? employeeId, ChangePasswordVM changePasswordVM)
         {
             var account = new Account();
@@ -167,7 +212,7 @@ namespace API.Repositories
                 return 5;
             }
             // Update password
-            account.Password = changePasswordVM.NewPassword;
+            account.Password = Hashing.HashPassword(changePasswordVM.NewPassword);
             account.IsUsed = true;
             try
             {
@@ -183,5 +228,6 @@ namespace API.Repositories
                 return 0;
             }
         }
+
     }
 }

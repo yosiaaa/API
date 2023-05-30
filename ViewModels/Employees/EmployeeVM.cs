@@ -5,6 +5,8 @@ namespace API.ViewModels.Employees
     public class EmployeeVM
     {
         public Guid? Guid { get; set; }
+
+        [NIKEmailPhoneValidation(nameof(Nik))]
         public string Nik { get; set; }
 
         public string FirstName { get; set; }

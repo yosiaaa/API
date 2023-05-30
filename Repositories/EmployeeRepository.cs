@@ -104,6 +104,14 @@ namespace API.Repositories
             }
         }
 
+       public bool CheckEmailAndPhoneAndNik(string value)
+        {
+            return _context.Employees
+                           .Any(e => e.Email == value ||
+                           e.PhoneNumber == value ||
+                           e.Nik == value);
+        }
+
         public Guid? FindGuidByEmail(string email)
         {
             try

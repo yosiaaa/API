@@ -8,6 +8,7 @@ namespace API.Contracts
         IEnumerable<BookingDetailVM> GetAllBookingDetail();
         BookingDetailVM GetBookingDetailByGuid(Guid guid);
 
+        //kel 3
         IEnumerable<BookingDurationVM> GetBookingDuration();
     }
 }
